@@ -21,6 +21,17 @@ services:
     ports:
       - "${DATABASUS_PORT}:4005"
 
+  redis:
+    image: redis:8.4.0
+    container_name: infra-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - infra-redis-data:/data
+    ports:
+      - "${REDIS_PORT}:6379"
+
 volumes:
   infra-postgres-data:
   infra-databasus-data:
+  infra-redis-data:
