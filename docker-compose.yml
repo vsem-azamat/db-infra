@@ -25,7 +25,7 @@ services:
     image: redis:8.4.0
     container_name: infra-redis
     restart: unless-stopped
-    command: ["redis-server", "--appendonly", "yes"]
+    command: ["redis-server", "--appendonly", "yes", "--bind", "0.0.0.0", "--protected-mode", "no", "--requirepass", "${REDIS_PASSWORD}"]
     volumes:
       - infra-redis-data:/data
     ports:
