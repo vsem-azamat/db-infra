@@ -1,0 +1,2 @@
+user default on sanitize-payload #7b49c2d5c294310937a83b2a523b7f7cc437035ac95165ef12bb919b4b0ecf21 ~* &* +@all
+user circuit-web on sanitize-payload #13b513fa1ec2ff0570fb633b21566852a956d45bd3916a0cf818786f4194762f ~* &* +@all -@admin -@dangerous +info +client +ping +cluster +command
