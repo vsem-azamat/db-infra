@@ -46,6 +46,11 @@ loki.source.docker "containers" {
 }
 
 loki.process "docker" {
+  stage.drop {
+    older_than          = "24h"
+    drop_counter_reason = "stale_docker_log"
+  }
+
   stage.json {
     expressions = {
       level       = "level",

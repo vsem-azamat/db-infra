@@ -161,7 +161,9 @@ or `web-services.*`; this avoids ingesting unrelated host logs by default.
 
 Use low-cardinality Loki labels such as `container`, `service`,
 `compose_project`, and `level`. Do not promote `request_id`, `order_id`, or
-`validation_id` to labels; query them from JSON log fields instead.
+`validation_id` to labels; query them from JSON log fields instead. Alloy drops
+Docker log entries older than 24 hours so first startup does not backfill stale
+container logs into Loki.
 
 Examples:
 
