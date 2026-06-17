@@ -80,6 +80,36 @@ services:
     ports:
       - "127.0.0.1:${PROMETHEUS_PORT:-9090}:9090"
 
+  loki:
+    image: grafana/loki:3.7.0
+    container_name: infra-loki
+    restart: unless-stopped
+    command: ["-config.file=/etc/loki/loki.yml"]
+    volumes:
+      - ./loki/loki.yml:/etc/loki/loki.yml:ro
+      - infra-loki-data:/loki
+    ports:
+      - "127.0.0.1:${LOKI_PORT:-3100}:3100"
+
+  alloy:
+    image: grafana/alloy:v1.17.0
+    container_name: infra-alloy
+    restart: unless-stopped
+    user: "0:0"
+    command:
+      - "run"
+      - "--server.http.listen-addr=0.0.0.0:12345"
+      - "--storage.path=/var/lib/alloy/data"
+      - "/etc/alloy/config.alloy"
+    volumes:
+      - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - infra-alloy-data:/var/lib/alloy/data
+    ports:
+      - "127.0.0.1:${ALLOY_PORT:-12345}:12345"
+    depends_on:
+      - loki
+
   grafana:
     image: grafana/grafana:12.4.4
     container_name: infra-grafana
@@ -105,3 +135,5 @@ volumes:
   infra-garage-data:
   infra-prometheus-data:
   infra-grafana-data:
+  infra-loki-data:
+  infra-alloy-data:
