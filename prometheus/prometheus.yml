@@ -1,0 +1,69 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets:
+          - 127.0.0.1:9090
+
+  - job_name: circuitninja-dev-api
+    metrics_path: /api/internal/metrics
+    scheme: https
+    static_configs:
+      - targets:
+          - dev.circuitninja.cz
+        labels:
+          project: circuitninja
+          service: web-services
+          component: api
+          env: dev
+    authorization:
+      type: Bearer
+      credentials_file: /etc/prometheus/secrets/circuitninja-dev-api-token
+
+  - job_name: circuitninja-dev-gewen
+    metrics_path: /api/internal/gewen-metrics
+    scheme: https
+    static_configs:
+      - targets:
+          - dev.circuitninja.cz
+        labels:
+          project: circuitninja
+          service: web-services
+          component: gewen
+          env: dev
+    authorization:
+      type: Bearer
+      credentials_file: /etc/prometheus/secrets/circuitninja-dev-api-token
+
+  - job_name: circuitninja-prod-api
+    metrics_path: /api/internal/metrics
+    scheme: https
+    static_configs:
+      - targets:
+          - circuitninja.cz
+        labels:
+          project: circuitninja
+          service: web-services
+          component: api
+          env: prod
+    authorization:
+      type: Bearer
+      credentials_file: /etc/prometheus/secrets/circuitninja-prod-api-token
+
+  - job_name: circuitninja-prod-gewen
+    metrics_path: /api/internal/gewen-metrics
+    scheme: https
+    static_configs:
+      - targets:
+          - circuitninja.cz
+        labels:
+          project: circuitninja
+          service: web-services
+          component: gewen
+          env: prod
+    authorization:
+      type: Bearer
+      credentials_file: /etc/prometheus/secrets/circuitninja-prod-api-token

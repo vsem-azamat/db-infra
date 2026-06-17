@@ -1,34 +1,51 @@
 # db-infra
 
-Personal database infrastructure with Docker Compose.
+Personal shared infrastructure with Docker Compose.
 
 ## Services
 
-- **PostgreSQL 18** — primary database
-- **Databasus** — database backup management service
-- **Redis** — shared cache/message store
-- **MinIO** — S3-compatible object storage
+- **PostgreSQL 18** - primary database
+- **Databasus** - database backup management service exposed through host-level Caddy at `databasus.azamat.io`
+- **Redis** - shared cache/message store
+- **MinIO** - S3-compatible object storage
+- **Garage** - S3-compatible object storage candidate for migration testing
+- **Prometheus** - metrics storage and query UI exposed through host-level Caddy at `prometheus.azamat.io`
+- **Grafana** - metrics dashboard UI exposed through host-level Caddy at `grafana.azamat.io`
 
 ## Runtime Source Of Truth
 
-This repository contains the canonical `db-infra` Docker Compose definition.
-
-Production credentials are not committed here. Shared infrastructure and
-per-service database credentials are stored in:
+This repository is the runtime source of truth. Run Docker Compose from the repo
+root so all relative bind mounts resolve to files in this checkout:
 
 ```bash
-/home/poryadok/projects/AGENTS.md/.env
+cd /home/poryadok/projects/db-infra
+docker compose --env-file .env up -d
 ```
 
-The currently running Docker Compose project is `db-infra` with
-`/data/compose/16` as its project directory. The canonical Compose file is the
-repository copy. Portainer's legacy copy at `/data/compose/16/docker-compose.yml`
-must be kept synchronized if Portainer is used to recreate the stack:
+The Compose project name is fixed in `docker-compose.yml` as `db-infra`, so the
+commands do not need `-p db-infra`. Do not use `/data/compose/16` as the Compose
+project directory for new changes; that old Portainer path can leave duplicated
+configs and secrets outside the repo.
+
+Production credentials are not committed here. Shared infrastructure runtime
+credentials live in ignored files in this checkout:
 
 ```bash
-sudo install -m 0644 docker-compose.yml /data/compose/16/docker-compose.yml
-sudo install -m 0644 redis-users.acl /data/compose/16/redis-users.acl
+.env
+prometheus/secrets/*
 ```
+
+Application and per-service credentials are stored outside this git repository
+under `/home/poryadok/projects/AGENTS.md/credentials/`, one file per
+project/environment:
+
+```bash
+/home/poryadok/projects/AGENTS.md/credentials/circuit.dev.env
+/home/poryadok/projects/AGENTS.md/credentials/circuit.prod.env
+/home/poryadok/projects/AGENTS.md/credentials/moderator.prod.env
+```
+
+Keep `.env` scoped to values needed by `docker compose --env-file .env ...`.
 
 ## Maintenance Updates
 
@@ -42,58 +59,33 @@ service at a time with `--no-deps`. Existing client connections to the recreated
 service will be dropped during the restart.
 
 ```bash
-docker compose --env-file /home/poryadok/projects/AGENTS.md/.env \
-  -p db-infra \
-  --project-directory /data/compose/16 \
-  -f /home/poryadok/projects/db-infra/docker-compose.yml \
-  pull postgres
+cd /home/poryadok/projects/db-infra
 
-docker compose --env-file /home/poryadok/projects/AGENTS.md/.env \
-  -p db-infra \
-  --project-directory /data/compose/16 \
-  -f /home/poryadok/projects/db-infra/docker-compose.yml \
-  up -d --no-deps postgres
+docker compose --env-file .env pull postgres
+docker compose --env-file .env up -d --no-deps postgres
 ```
 
 To update every service after image tags have been reviewed:
 
 ```bash
-docker compose --env-file /home/poryadok/projects/AGENTS.md/.env \
-  -p db-infra \
-  --project-directory /data/compose/16 \
-  -f /home/poryadok/projects/db-infra/docker-compose.yml \
-  pull
+cd /home/poryadok/projects/db-infra
 
-docker compose --env-file /home/poryadok/projects/AGENTS.md/.env \
-  -p db-infra \
-  --project-directory /data/compose/16 \
-  -f /home/poryadok/projects/db-infra/docker-compose.yml \
-  up -d --no-deps postgres
+docker compose --env-file .env pull
 
-docker compose --env-file /home/poryadok/projects/AGENTS.md/.env \
-  -p db-infra \
-  --project-directory /data/compose/16 \
-  -f /home/poryadok/projects/db-infra/docker-compose.yml \
-  up -d --no-deps redis
-
-docker compose --env-file /home/poryadok/projects/AGENTS.md/.env \
-  -p db-infra \
-  --project-directory /data/compose/16 \
-  -f /home/poryadok/projects/db-infra/docker-compose.yml \
-  up -d --no-deps minio
-
-docker compose --env-file /home/poryadok/projects/AGENTS.md/.env \
-  -p db-infra \
-  --project-directory /data/compose/16 \
-  -f /home/poryadok/projects/db-infra/docker-compose.yml \
-  up -d --no-deps databasus
+docker compose --env-file .env up -d --no-deps postgres
+docker compose --env-file .env up -d --no-deps redis
+docker compose --env-file .env up -d --no-deps minio
+docker compose --env-file .env up -d --no-deps garage
+docker compose --env-file .env up -d --no-deps databasus
+docker compose --env-file .env up -d --no-deps prometheus
+docker compose --env-file .env up -d --no-deps grafana
 ```
 
 ## Quick Start
 
 ```bash
 cp .env.example .env
-docker compose up -d
+docker compose --env-file .env up -d
 ```
 
 ## Ports
@@ -101,7 +93,55 @@ docker compose up -d
 | Service    | Default Port |
 |------------|--------------|
 | PostgreSQL | 5432         |
-| Databasus  | 4005         |
+| Databasus  | `databasus.azamat.io` via Caddy |
 | Redis      | 6379         |
 | MinIO API  | 9000         |
 | MinIO UI   | 9001         |
+| Garage S3  | `garage.azamat.io` via Caddy; local 3900 |
+| Garage Admin | 3903 on `127.0.0.1` |
+| Prometheus | `prometheus.azamat.io` via Caddy |
+| Grafana    | `grafana.azamat.io` via Caddy |
+
+Databasus binds its host port only on `127.0.0.1`, and the host-level Caddy
+container runs in host network mode so it can proxy HTTPS traffic to
+`127.0.0.1:4005`.
+
+Prometheus and Grafana also bind their host ports only on `127.0.0.1`.
+Prometheus is protected by Caddy Basic Auth. Grafana uses its own login screen
+with admin credentials from `.env`; anonymous access is explicitly disabled.
+
+Garage is added side-by-side with MinIO for migration testing. The current
+configuration is a single-node deployment with `replication_factor = 1`, so it
+does not provide object redundancy by itself. Use it for compatibility testing
+until a multi-node layout is planned. The public S3 endpoint is intended to be
+`https://garage.azamat.io` through the host-level Caddy reverse proxy, using
+path-style S3 requests.
+
+## Service Metrics
+
+Prometheus scrapes application metrics through public HTTPS endpoints protected
+with bearer tokens. Keep scrape tokens out of git by storing them under
+`prometheus/secrets/` and mounting that directory read-only into Prometheus.
+
+CircuitNinja has separate scrape jobs and token files for each environment:
+
+```bash
+prometheus/secrets/circuitninja-dev-api-token
+prometheus/secrets/circuitninja-prod-api-token
+```
+
+Each token value must match the corresponding `web-services` deployment
+`OBSERVABILITY_METRICS_SECRET`. Queue validation gauges should stay disabled for
+the first rollout; omit `OBSERVABILITY_VALIDATION_QUEUE_METRICS_ENABLED` or set
+it to `false` until the base scrape is verified.
+
+Use Prometheus labels for project/environment grouping instead of duplicating
+Prometheus instances:
+
+```promql
+up{project="circuitninja", env="dev"}
+up{project="circuitninja", env="prod"}
+```
+
+Grafana keeps project-level dashboards in folders. The first folder is
+`CircuitNinja`.
