@@ -10,7 +10,9 @@ Personal shared infrastructure with Docker Compose.
 - **MinIO** - S3-compatible object storage
 - **Garage** - S3-compatible object storage candidate for migration testing
 - **Prometheus** - metrics storage and query UI exposed through host-level Caddy at `prometheus.azamat.io`
-- **Grafana** - metrics dashboard UI exposed through host-level Caddy at `grafana.azamat.io`
+- **Grafana** - metrics and logs dashboard UI exposed through host-level Caddy at `grafana.azamat.io`
+- **Loki** - log storage for Docker container logs
+- **Alloy** - Docker log collector that forwards logs to Loki
 
 ## Runtime Source Of Truth
 
@@ -78,6 +80,8 @@ docker compose --env-file .env up -d --no-deps minio
 docker compose --env-file .env up -d --no-deps garage
 docker compose --env-file .env up -d --no-deps databasus
 docker compose --env-file .env up -d --no-deps prometheus
+docker compose --env-file .env up -d --no-deps loki
+docker compose --env-file .env up -d --no-deps alloy
 docker compose --env-file .env up -d --no-deps grafana
 ```
 
@@ -101,6 +105,8 @@ docker compose --env-file .env up -d
 | Garage Admin | 3903 on `127.0.0.1` |
 | Prometheus | `prometheus.azamat.io` via Caddy |
 | Grafana    | `grafana.azamat.io` via Caddy |
+| Loki       | 3100 on `127.0.0.1` |
+| Alloy      | 12345 on `127.0.0.1` |
 
 Databasus binds its host port only on `127.0.0.1`, and the host-level Caddy
 container runs in host network mode so it can proxy HTTPS traffic to
@@ -145,3 +151,22 @@ up{project="circuitninja", env="prod"}
 
 Grafana keeps project-level dashboards in folders. The first folder is
 `CircuitNinja`.
+
+## Service Logs
+
+Loki stores Docker container logs. Alloy reads the Docker socket and forwards
+logs to Loki. Grafana provisions the `Loki` datasource beside `Prometheus`. Alloy
+keeps only containers whose Compose project matches `db-infra`, `circuitninja.*`,
+or `web-services.*`; this avoids ingesting unrelated host logs by default.
+
+Use low-cardinality Loki labels such as `container`, `service`,
+`compose_project`, and `level`. Do not promote `request_id`, `order_id`, or
+`validation_id` to labels; query them from JSON log fields instead.
+
+Examples:
+
+```logql
+{compose_project="db-infra"}
+{container=~".*gewen.*"} |= "error"
+{container=~".*api.*"} | json req_id="req.id" | req_id="<request-id>"
+```

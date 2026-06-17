@@ -2,3 +2,5 @@
 .env.backup-*
 prometheus/secrets/*
 !prometheus/secrets/.gitkeep
+
+.worktrees/
